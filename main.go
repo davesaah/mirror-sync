@@ -87,13 +87,13 @@ func (p *Platform) createRepo(data RepoData) error {
 	// body, _ := io.ReadAll(resp.Body)
 	// fmt.Printf("[%s] status=%d body=%s\n", p.name, resp.StatusCode, string(body))
 
-	switch {
-	case resp.StatusCode == 201:
+	switch resp.StatusCode {
+	case http.StatusCreated:
 		fmt.Printf("[->] %s repo created\n", p.name)
-	case resp.StatusCode >= 400 && resp.StatusCode < 500:
+	case http.StatusBadRequest, http.StatusUnprocessableEntity, http.StatusConflict:
 		fmt.Printf("[!] repo already exists on %s\n", p.name)
 	default:
-		fmt.Printf("[!] repo creation status code: %d\n", resp.StatusCode)
+		fmt.Printf("[!] %s repo creation status code: %d\n", p.name, resp.StatusCode)
 	}
 
 	return nil
@@ -104,6 +104,8 @@ const EXTERNAL_USER = "davesaah"
 const VERIFY_CERT = "/etc/ssl/homelab/git.davesaah-pc.pem"
 
 func main() {
+	var err error
+
 	repoName := "testing-mirror-sync-v2"
 	// localOwner := ""
 	visibility := "private"
@@ -111,15 +113,15 @@ func main() {
 	var wg sync.WaitGroup
 
 	tokens, err := getTokens()
-	if err != nil {
-		fmt.Printf("unable to get tokens: %v\n", err)
-		os.Exit(1)
-	}
+	check(WithErr(err), WithExit(true))
 
 	mirrors := Mirror{}
-	mirrors.add("github", tokens["GITHUB_TOKEN"], "https://api.github.com/user/repos")
-	mirrors.add("gitlab", tokens["GITLAB_TOKEN"], "https://gitlab.com/api/v4/projects")
-	mirrors.add("codeberg", tokens["CODEBERG_TOKEN"], "https://codeberg.org/api/v1/user/repos")
+	err = mirrors.add("github", tokens["GITHUB_TOKEN"], "https://api.github.com/user/repos")
+	check(WithErr(err))
+	err = mirrors.add("gitlab", tokens["GITLAB_TOKEN"], "https://gitlab.com/api/v4/projects")
+	check(WithErr(err))
+	err = mirrors.add("codeberg", tokens["CODEBERG_TOKEN"], "https://codeberg.org/api/v1/user/repos")
+	check(WithErr(err))
 
 	data := RepoData{
 		Payload: Payload{
@@ -157,4 +159,43 @@ func main() {
 	}
 
 	wg.Wait()
+}
+
+type errOptions struct {
+	err  error
+	exit bool
+}
+
+func newErrOptions() *errOptions {
+	return &errOptions{
+		exit: false,
+	}
+}
+
+type ErrOption func(*errOptions)
+
+func WithErr(v error) ErrOption {
+	return func(o *errOptions) {
+		o.err = v
+	}
+}
+
+func WithExit(v bool) ErrOption {
+	return func(o *errOptions) {
+		o.exit = v
+	}
+}
+
+func check(opts ...ErrOption) {
+	o := newErrOptions()
+	for _, opt := range opts {
+		opt(o)
+	}
+
+	if o.err != nil {
+		fmt.Println(o.err)
+		if o.exit {
+			os.Exit(1)
+		}
+	}
 }
