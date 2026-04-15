@@ -1,4 +1,4 @@
-package main
+package core
 
 import (
 	"bytes"
@@ -20,11 +20,8 @@ type Mirror struct {
 	platforms []Platform
 }
 
-func (m *Mirror) add(name, token, _url string) error {
-	urlObj, err := url.Parse(_url)
-	if err != nil {
-		return fmt.Errorf("invalid mirror url: %w", err)
-	}
+func (m *Mirror) add(name, token, _url string) {
+	urlObj, _ := url.Parse(_url)
 
 	hostParts := strings.Split(urlObj.Hostname(), ".")
 	tld := hostParts[len(hostParts)-1]
@@ -35,17 +32,12 @@ func (m *Mirror) add(name, token, _url string) error {
 		token: token,
 		host:  fmt.Sprintf("%s.%s", name, tld),
 	})
-
-	return nil
 }
 
 func (p *Platform) createRepo(data RepoData) error {
 	fmt.Printf("[*] Creating %s repo on %s: %s\n", data.Payload.Visibility, p.name, data.Payload.Name)
 
-	payload, err := json.Marshal(data.Payload)
-	if err != nil {
-		return fmt.Errorf("unable to create payload: %w", err)
-	}
+	payload, _ := json.Marshal(data.Payload)
 
 	req, err := http.NewRequest("POST", p.url, bytes.NewBuffer(payload))
 	if err != nil {
@@ -61,9 +53,6 @@ func (p *Platform) createRepo(data RepoData) error {
 		return fmt.Errorf("http request failed: %w", err)
 	}
 	defer resp.Body.Close()
-
-	// body, _ := io.ReadAll(resp.Body)
-	// fmt.Printf("[%s] status=%d body=%s\n", p.name, resp.StatusCode, string(body))
 
 	switch resp.StatusCode {
 	case http.StatusCreated:
@@ -115,9 +104,6 @@ func (p *Platform) sync(localOwner, repoName, localToken string) error {
 		return fmt.Errorf("http request failed: %w", err)
 	}
 	defer resp.Body.Close()
-
-	// body, _ := io.ReadAll(resp.Body)
-	// fmt.Printf("[%s] status=%d body=%s\n", p.name, resp.StatusCode, string(body))
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("[!] failed to add %s mirror", p.name)
