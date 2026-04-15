@@ -94,7 +94,7 @@ func (p *Platform) sync(localOwner, repoName, localToken string) error {
 		Interval      string `json:"interval"`
 	}{
 		RemoteAddress: remoteUrl,
-		SyncOnCommit:  false,
+		SyncOnCommit:  true,
 		Interval:      "24h",
 	}
 	payload, err := json.Marshal(_payload)
@@ -120,7 +120,7 @@ func (p *Platform) sync(localOwner, repoName, localToken string) error {
 	// fmt.Printf("[%s] status=%d body=%s\n", p.name, resp.StatusCode, string(body))
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("[!] failed to add %s mirror\n", p.name)
+		return fmt.Errorf("[!] failed to add %s mirror", p.name)
 	}
 
 	fmt.Printf("[->] %s mirror added successfully\n", p.name)

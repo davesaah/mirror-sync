@@ -2,7 +2,10 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
@@ -12,15 +15,20 @@ const LOCAL_URL = "https://git.davesaah-pc/api/v1"
 const EXTERNAL_USER = "davesaah"
 
 type Payload struct {
-	Name       string `json:"name"`
-	Private    bool   `json:"private"`
-	Path       string `json:"path"`
-	Visibility string `json:"visibility"`
+	Name        string `json:"name"`
+	Private     bool   `json:"private"`
+	Path        string `json:"path"`
+	Visibility  string `json:"visibility"`
+	Description string `json:"description"`
 }
 
 type RepoData struct {
 	Header  map[string]string
 	Payload Payload
+}
+
+type DescriptionResponse struct {
+	Description string `json:"description"`
 }
 
 func getTokens() (map[string]string, error) {
@@ -43,6 +51,37 @@ func getTokens() (map[string]string, error) {
 	return tokens, nil
 }
 
+func fetchDescription(owner, repoName, token string) (string, error) {
+	fmt.Println("[*] Fetching description from Gitea...")
+	endpoint := fmt.Sprintf("%s/repos/%s/%s", LOCAL_URL, owner, repoName)
+
+	req, err := http.NewRequest("GET", endpoint, nil)
+	if err != nil {
+		return "", fmt.Errorf("unable to create http request object: %w", err)
+	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("http request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("unable to fetch description for %s repo: %w", repoName, err)
+	}
+
+	var bodyObj DescriptionResponse
+	if err = json.Unmarshal(body, &bodyObj); err != nil {
+		return "", fmt.Errorf("unable to fetch description for %s repo: %w", repoName, err)
+	}
+
+	return fmt.Sprintf("[Mirror] %s", bodyObj.Description), nil
+}
+
 func main() {
 	var err error
 
@@ -62,13 +101,16 @@ func main() {
 	check(WithErr(err))
 	err = mirrors.add("codeberg", tokens["CODEBERG_TOKEN"], "https://codeberg.org/api/v1/user/repos")
 	check(WithErr(err))
+	description, err := fetchDescription(localOwner, repoName, tokens["LOCALHOST_TOKEN"])
+	check(WithErr(err), WithExit(true))
 
 	data := RepoData{
 		Payload: Payload{
-			Name:       repoName,
-			Private:    visibility == "private",
-			Visibility: visibility,
-			Path:       repoName,
+			Name:        repoName,
+			Private:     visibility == "private",
+			Visibility:  visibility,
+			Path:        repoName,
+			Description: description,
 		},
 	}
 
