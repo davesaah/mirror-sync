@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/spf13/viper"
 )
 
 type Platform struct {
@@ -69,13 +71,13 @@ func (p *Platform) createRepo(data RepoData) error {
 func (p *Platform) sync(localOwner, repoName, localToken string) error {
 	fmt.Printf("[*] Adding %s mirror...\n", p.name)
 
-	user := EXTERNAL_USER
+	user := viper.GetString("external-user")
 	if p.name == "gitlab" {
 		user = "oauth2"
 	}
 
-	endpoint := fmt.Sprintf("%s/repos/%s/%s/push_mirrors", LOCAL_URL, localOwner, repoName)
-	remoteUrl := fmt.Sprintf("https://%s:%s@%s/%s/%s.git", user, p.token, p.host, EXTERNAL_USER, repoName)
+	endpoint := fmt.Sprintf("%s/api/v1/repos/%s/%s/push_mirrors", viper.GetString("local-url"), localOwner, repoName)
+	remoteUrl := fmt.Sprintf("https://%s:%s@%s/%s/%s.git", user, p.token, p.host, viper.GetString("external-user"), repoName)
 
 	_payload := struct {
 		RemoteAddress string `json:"remote_address"`

@@ -4,9 +4,11 @@ Copyright © 2026 David Saah davesaah@gmail.com
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -28,14 +30,23 @@ func Execute() {
 }
 
 func init() {
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
+	// setting up config
+	userHomeDir, _ := os.UserHomeDir()
+	cfgPath := fmt.Sprintf("%s/.config/mirror-sync.json", userHomeDir)
 
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.mirror-sync.yaml)")
+	// make sure file exists
+	_, err := os.ReadFile(cfgPath)
+	if err != nil {
+		os.WriteFile(cfgPath, []byte("{}"), 0664)
+	}
 
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
+	// load config
+	viper.SetConfigFile(cfgPath)
+	err = viper.ReadInConfig()
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	rootCmd.Flags().BoolP("help", "h", false, "Show help")
 	rootCmd.Flags().BoolP("version", "v", false, "Show version")
 }

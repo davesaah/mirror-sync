@@ -1,19 +1,15 @@
 package core
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
-	"os"
-	"strings"
 	"sync"
-)
 
-const LOCAL_URL = "https://git.davesaah-pc/api/v1"
-const EXTERNAL_USER = "davesaah"
+	"github.com/spf13/viper"
+)
 
 type Payload struct {
 	Name        string `json:"name"`
@@ -32,29 +28,9 @@ type LocalRepoInfo struct {
 	Description string `json:"description"`
 }
 
-func getTokens() (map[string]string, error) {
-	tokens := make(map[string]string)
-
-	f, err := os.Open(".env")
-	if err != nil {
-		return nil, fmt.Errorf("unable to get tokens. env file not found: %w", err)
-	}
-
-	scanner := bufio.NewScanner(f)
-
-	for scanner.Scan() {
-		parts := strings.SplitN(scanner.Text(), "=", 2)
-		if len(parts) == 2 {
-			tokens[parts[0]] = parts[1]
-		}
-	}
-
-	return tokens, nil
-}
-
 func fetchLocalRepoInfo(owner, repoName, token string) (*LocalRepoInfo, error) {
 	fmt.Println("[*] Fetching local repo info from Gitea...")
-	endpoint := fmt.Sprintf("%s/repos/%s/%s", LOCAL_URL, owner, repoName)
+	endpoint := fmt.Sprintf("%s/api/v1/repos/%s/%s", viper.GetString("local-url"), owner, repoName)
 
 	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
@@ -79,8 +55,6 @@ func fetchLocalRepoInfo(owner, repoName, token string) (*LocalRepoInfo, error) {
 		return nil, fmt.Errorf("unable to fetch local info body for %s repo: %w", repoName, err)
 	}
 
-	fmt.Printf("body: %s\n", string(body))
-
 	var info LocalRepoInfo
 	json.Unmarshal(body, &info)
 
@@ -92,17 +66,12 @@ func fetchLocalRepoInfo(owner, repoName, token string) (*LocalRepoInfo, error) {
 func Run(repoName, localOwner, visibility string) error {
 	var wg sync.WaitGroup
 
-	tokens, err := getTokens()
-	if err != nil {
-		return err
-	}
-
 	mirrors := Mirror{}
-	mirrors.add("github", tokens["GITHUB_TOKEN"], "https://api.github.com/user/repos")
-	mirrors.add("gitlab", tokens["GITLAB_TOKEN"], "https://gitlab.com/api/v4/projects")
-	mirrors.add("codeberg", tokens["CODEBERG_TOKEN"], "https://codeberg.org/api/v1/user/repos")
+	mirrors.add("github", viper.GetString("github-token"), "https://api.github.com/user/repos")
+	mirrors.add("gitlab", viper.GetString("gitlab-token"), "https://gitlab.com/api/v4/projects")
+	mirrors.add("codeberg", viper.GetString("codeberg-token"), "https://codeberg.org/api/v1/user/repos")
 
-	localInfo, err := fetchLocalRepoInfo(localOwner, repoName, tokens["LOCALHOST_TOKEN"])
+	localInfo, err := fetchLocalRepoInfo(localOwner, repoName, viper.GetString("localhost-token"))
 	if err != nil {
 		return err
 	}
@@ -141,7 +110,7 @@ func Run(repoName, localOwner, visibility string) error {
 			if err != nil {
 				log.Println(err)
 			}
-			err = p.sync(localOwner, repoName, tokens["LOCALHOST_TOKEN"])
+			err = p.sync(localOwner, repoName, viper.GetString("localhost-token"))
 			if err != nil {
 				log.Println(err)
 			}

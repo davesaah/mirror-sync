@@ -1,3 +1,3 @@
-# mirror-sync-init
+# Mirror Sync
 
-Scripts for syncing my local git server to github, codeberg and gitlab.
+Sync your local gitea repos to github, codeberg and gitlab.
