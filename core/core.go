@@ -30,19 +30,17 @@ type LocalRepoInfo struct {
 
 func fetchLocalRepoInfo(owner, repoName, token string) (*LocalRepoInfo, error) {
 	fmt.Println("[*] Fetching local repo info from Gitea...")
-	endpoint := fmt.Sprintf("%s/api/v1/repos/%s/%s", viper.GetString("local-url"), owner, repoName)
 
-	req, err := http.NewRequest("GET", endpoint, nil)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create http request object: %w", err)
+	endpoint := fmt.Sprintf("%s/api/v1/repos/%s/%s", viper.GetString("local-url"), owner, repoName)
+	headers := map[string]string{
+		"Authorization": fmt.Sprintf("token %s", token),
+		"Content-Type":  "application/json",
 	}
 
-	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := http.DefaultClient.Do(req)
+	client := NewHTTPClient()
+	resp, err := client.DoRequest("GET", endpoint, nil, headers)
 	if err != nil {
-		return nil, fmt.Errorf("http request failed: %w", err)
+		return nil, fmt.Errorf("unable to fetch local repo info: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -90,10 +88,10 @@ func Run(repoName, localOwner, visibility string) error {
 		p := platform
 		d := RepoData{
 			Payload: data.Payload,
-			Header:  make(map[string]string),
+			Header: map[string]string{
+				"Content-Type": "application/json",
+			},
 		}
-
-		d.Header["Content-Type"] = "application/json"
 
 		switch p.name {
 		case "github":

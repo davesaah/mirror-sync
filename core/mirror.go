@@ -1,7 +1,6 @@
 package core
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -40,19 +39,10 @@ func (p *Platform) createRepo(data RepoData) error {
 	fmt.Printf("[*] Creating %s repo on %s: %s\n", data.Payload.Visibility, p.name, data.Payload.Name)
 
 	payload, _ := json.Marshal(data.Payload)
-
-	req, err := http.NewRequest("POST", p.url, bytes.NewBuffer(payload))
+	client := NewHTTPClient()
+	resp, err := client.DoRequest("POST", p.url, payload, data.Header)
 	if err != nil {
-		return fmt.Errorf("unable to create http request object: %w", err)
-	}
-
-	for k, v := range data.Header {
-		req.Header.Set(k, v)
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("http request failed: %w", err)
+		return fmt.Errorf("unable to create repo: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -93,17 +83,15 @@ func (p *Platform) sync(localOwner, repoName, localToken string) error {
 		return fmt.Errorf("unable to parse payload for syncing mirror: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(payload))
-	if err != nil {
-		return fmt.Errorf("unable to create http request object: %w", err)
+	headers := map[string]string{
+		"Authorization": fmt.Sprintf("token %s", localToken),
+		"Content-Type":  "application/json",
 	}
 
-	req.Header.Set("Authorization", fmt.Sprintf("token %s", localToken))
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := http.DefaultClient.Do(req)
+	client := NewHTTPClient()
+	resp, err := client.DoRequest("POST", endpoint, payload, headers)
 	if err != nil {
-		return fmt.Errorf("http request failed: %w", err)
+		return fmt.Errorf("unable to add repo as mirror: %w", err)
 	}
 	defer resp.Body.Close()
 
