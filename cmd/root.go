@@ -1,6 +1,7 @@
 /*
 Copyright © 2026 David Saah davesaah@gmail.com
 */
+// Package cmd defines a command line interface for mirror-sync
 package cmd
 
 import (

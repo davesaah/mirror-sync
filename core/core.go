@@ -1,3 +1,6 @@
+// Package core handles the logic for mirror-sync.
+// It provides functions to fetch local repo info, and to mirror
+// repositories from a local gitea instance to github, codeberg and gitlab.
 package core
 
 import (
@@ -11,6 +14,7 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Payload is the request body when sending HTTP requests to cloud platforms
 type Payload struct {
 	Name        string `json:"name"`
 	Private     bool   `json:"private"`
@@ -19,6 +23,7 @@ type Payload struct {
 	Description string `json:"description"`
 }
 
+// RepoData defines the metadata of the repo to be mirrored
 type RepoData struct {
 	Header  map[string]string
 	Payload Payload
@@ -61,6 +66,7 @@ func fetchLocalRepoInfo(owner, repoName, token string) (*LocalRepoInfo, error) {
 	return &info, nil
 }
 
+// Run is the entry point for creating a repository mirror.
 func Run(repoName, localOwner, visibility string) error {
 	var wg sync.WaitGroup
 
@@ -103,6 +109,8 @@ func Run(repoName, localOwner, visibility string) error {
 			d.Header["Authorization"] = fmt.Sprintf("token %s", platform.token)
 		}
 
+		// run repo creation and mirroring concurrently and wait for every http request to
+		// be fulfilled
 		wg.Go(func() {
 			err = p.createRepo(d)
 			if err != nil {

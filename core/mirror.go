@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Platform defines the credentials + config for interacting with a cloud
+// repository provider
 type Platform struct {
 	url   string
 	name  string
@@ -17,6 +19,7 @@ type Platform struct {
 	host  string
 }
 
+// Mirror is a list of platforms: github, gitlab and codeberg
 type Mirror struct {
 	platforms []Platform
 }
@@ -35,6 +38,7 @@ func (m *Mirror) add(name, token, _url string) {
 	})
 }
 
+// createRepo creates a repository on the cloud provider using the RepoData
 func (p *Platform) createRepo(data RepoData) error {
 	fmt.Printf("[*] Creating %s repo on %s: %s\n", data.Payload.Visibility, p.name, data.Payload.Name)
 
@@ -58,6 +62,7 @@ func (p *Platform) createRepo(data RepoData) error {
 	return nil
 }
 
+// sync sets up the created cloud platform repo as a mirror on the local gitea server
 func (p *Platform) sync(localOwner, repoName, localToken string) error {
 	fmt.Printf("[*] Adding %s mirror...\n", p.name)
 
